@@ -1,6 +1,9 @@
 /**
- * 
+ * my solution to the HR acm icpc challenge
+ * note, this is a little different to the actual requirements:
+ * for example, I generate knowlege of topics randomly and I don't read the number of people and topics from stdin
  */
+
 package acm_icpc;
 
 import java.util.ArrayList;
@@ -10,7 +13,7 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * @author andrew
+ * @author Teedles
  *
  */
 public class GroupKnowledgeCounter {

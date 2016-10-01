@@ -41,15 +41,10 @@ public class GroupKnowledgeCounter {
 		for (int i=0;i<people.length; i++) {
 			people[i] = new Person();
 			people[i].setPersonID(i);
-			people[i].setPersonKnowledge(generateKnowledge());
-			
-			// System.out.println("Person " + people[i].getPersonID() + " knows topics " + people[i].getPersonKnowledge().cardinality());
 		}
 		
-		List<Group> groups = generateGroups(people, maxGroups);
-		
-		// groups.forEach((temp) -> { System.out.println("Group " + temp.getGroupId()+ " is Person 1: " + temp.getP1().getPersonID() + " Person 2: " + temp.getP2().getPersonID());});
-		
+		List<Group> groups = generateGroups(people);
+	
 		// COMPUTATION
 		startTime = System.currentTimeMillis();
 		int[] maxKnownTopics = countKnownTopicsAndGroups(groups);
@@ -62,17 +57,18 @@ public class GroupKnowledgeCounter {
 		System.out.println("Computation took: "+ (stopTime - startTime) + " millis");
 	}
 	
+	/**
+	 *  for all our groups, determine the max topics known
+	 *  also count the amount of groups that know that number of topics
+	 * @param groups
+	 * @return an int array with the numbers counted
+	 */
 	private static int[] countKnownTopicsAndGroups(List<Group> groups) {
 		
 		int[] maxKnownTopicsAndGroups = new int[] {0,0};
 		int maxKnownTopics = 0; 
 
-		for (Group g : groups) {
-			
-			g.getP1().getPersonKnowledge().or(g.getP2().getPersonKnowledge());
-			
-			g.setGroupKnowledge((BitSet) g.getP1().getPersonKnowledge().clone());
-
+		for (Group g : groups) {		
 			if (maxKnownTopics < g.getGroupKnowledge().cardinality()) {
 				maxKnownTopics = g.getGroupKnowledge().cardinality();
 			}	
@@ -89,15 +85,19 @@ public class GroupKnowledgeCounter {
 		return maxKnownTopicsAndGroups;
 	}
 
-	private static List<Group> generateGroups(Person[] people, int maxGroups) {
-		
-		int currentPerson = -1;
-		int highestPersonId = -1;
-		
+	/**
+	 *  for our array of people, create the groups they will be a member of
+	 *  actually kind of the reverse: every other person will be grouped with the current person
+	 *  but we pop the people already grouped off the list to ensure that  p1 and p2 are grouped
+	 *  but that p2 will not then form a group with p1. we do this by making a list of the people already grouped up
+	 * @param people
+	 * @return a list of groups
+	 */
+	private static List<Group> generateGroups(Person[] people) {
+
 		List<Group> tempGroups = new ArrayList<Group>();
 		List<Person> removePersons = new ArrayList<Person>();
-		
-		
+
 		for (Person p : people) {
 
 			removePersons.add(p);
@@ -106,24 +106,20 @@ public class GroupKnowledgeCounter {
 			for (Person r : removePersons) {
 				members.remove(r);
 			}
-					
-			currentPerson = p.getPersonID();
-			
-			if (currentPerson > highestPersonId) {
-				highestPersonId = currentPerson;
-			}
-		
+
 			for (Person q : members) {
 				Group g = new Group(p,q);
 				tempGroups.add(g);
-				
-				//System.out.println("Added persons " + p.getPersonID() + " and " + q.getPersonID() + " to group " + g.getGroupId());
 			}
 		}	
-		
+
 		return tempGroups;
 	}
 
+	/**
+	 * make a bunch of people according to our configured bandwidth
+	 * @return an array of people
+	 */
 	public Person[] generatePeople() {
 		Person[] tempPeople = new Person[PERSON_BANDWITH];
 		
@@ -135,6 +131,10 @@ public class GroupKnowledgeCounter {
 		return tempPeople;
 	}
 	
+	/**
+	 * using BITSETs, whooo
+	 * @return a BitSet of random bits
+	 */
 	public static BitSet generateKnowledge() {
 		BitSet tempKnowledge = new BitSet(KNOWLEDGE_BANDWITH);
 		Random rand = new Random();
@@ -146,10 +146,21 @@ public class GroupKnowledgeCounter {
 		return tempKnowledge;
 	}
 	
+	/**
+	 * we compute the number of possible groups as a check. not really needed.
+	 * using N*(N-1)/2 to determine max groups of 2 people 
+	 * @param numPeople
+	 * @return an int with maxGroups value
+	 */
 	public static int returnMaxGroups(int numPeople) {
 		return numPeople * (numPeople - 1) / 2;	
 	}
 	
+	/**
+	 * person class. overkill really but hey ho
+	 * note: on instantiation, the persons knowledge is generated
+	 *
+	 */
 	public static class Person {
 		
 		private int personID;
@@ -184,9 +195,15 @@ public class GroupKnowledgeCounter {
 		}
 		
 		public Person() {
+			this.setPersonKnowledge(generateKnowledge());
 		}
 	}
 
+	/**
+	 * group class. also overkill really
+	 * note: on instantiation, the OR of the two persons knowledge is generated
+	 *
+	 */
 	public static class Group {
 		/**
 		 * @return the p1
@@ -238,9 +255,10 @@ public class GroupKnowledgeCounter {
 			this.setP1(p1);
 			this.setP2(p2);
 			
+			this.getP1().getPersonKnowledge().or(this.getP2().getPersonKnowledge());
+			
+			this.setGroupKnowledge((BitSet) this.getP1().getPersonKnowledge().clone() );
 		}
 	}
 }
-
-
 

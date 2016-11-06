@@ -7,10 +7,14 @@
 package acm_icpc;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * @author Teedles
@@ -20,68 +24,85 @@ public class GroupKnowledgeCounter {
 
 	public final static int KNOWLEDGE_BANDWITH = 500;
 	public final static int PERSON_BANDWITH = 500;
-	
+
 	/**
 	 * 
 	 */
-	public GroupKnowledgeCounter() {
-		// TODO Auto-generated constructor stub
-	}
+	public GroupKnowledgeCounter() {}
 
 	/**
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		//SETUP
-		int maxGroups = returnMaxGroups(PERSON_BANDWITH);
-		Person[] people = new Person[PERSON_BANDWITH];
 		long startTime;
 		long stopTime;
-		
-		for (int i=0;i<people.length; i++) {
-			people[i] = new Person();
-			people[i].setPersonID(i);
-		}
-		
-		List<Group> groups = generateGroups(people);
-	
-		// COMPUTATION
+		List<Group> groups = new ArrayList<Group>();
+
+		//SETUP
 		startTime = System.currentTimeMillis();
-		int[] maxKnownTopics = countKnownTopicsAndGroups(groups);
+		System.out.println("Generating people...");
+		List<Person> people = personGeneration();
+		// List<Person> people = threadedPersonGeneration();
+
+		int maxGroups = returnMaxGroups(PERSON_BANDWITH);
+
+		System.out.println("Generating groups...");
+		groups = generateGroups(people);
+
+
+		// COMPUTATION
+		System.out.println("Counting group knowledge...");
+		// int[] maxKnownTopics = groupProcessor(groups);
+		int[] maxKnownTopics = threadedGroupProcessor(groups);
+
 		stopTime = System.currentTimeMillis(); 
-		
+
 		// PRESENTATION
 		System.out.println("Max possible groups is: " + maxGroups);
 		System.out.println("Max known topics is: " + maxKnownTopics[0]);
 		System.out.println("Number of Groups that know the max Topics is: " + maxKnownTopics[1]);
 		System.out.println("Computation took: "+ (stopTime - startTime) + " millis");
+
+		System.exit(0);
 	}
-	
+
 	/**
 	 *  for all our groups, determine the max topics known
 	 *  also count the amount of groups that know that number of topics
 	 * @param groups
 	 * @return an int array with the numbers counted
 	 */
-	private static int[] countKnownTopicsAndGroups(List<Group> groups) {
-		
+	private static int[] groupProcessor(List<Group> groups) {
+
+		long start = System.currentTimeMillis();
 		int[] maxKnownTopicsAndGroups = new int[] {0,0};
 		int maxKnownTopics = 0; 
+
+
+		maxKnownTopicsAndGroups[0] = maxKnownTopics;
+
+		for (Group p : groups) {
+			if (p.getGroupKnowledge().cardinality() == maxKnownTopics) {
+				maxKnownTopicsAndGroups[1]++;
+			}
+		}
 
 		for (Group g : groups) {		
 			if (maxKnownTopics < g.getGroupKnowledge().cardinality()) {
 				maxKnownTopics = g.getGroupKnowledge().cardinality();
 			}	
 		}
-	
+
 		maxKnownTopicsAndGroups[0] = maxKnownTopics;
-		
+
 		for (Group p : groups) {
-		if (p.getGroupKnowledge().cardinality() == maxKnownTopics) {
+			if (p.getGroupKnowledge().cardinality() == maxKnownTopics) {
 				maxKnownTopicsAndGroups[1]++;
 			}
 		}
-		
+
+		long stop = System.currentTimeMillis();
+		System.out.println("Counting group knowledge took " + (stop - start) + " millis.");
 		return maxKnownTopicsAndGroups;
 	}
 
@@ -93,59 +114,135 @@ public class GroupKnowledgeCounter {
 	 * @param people
 	 * @return a list of groups
 	 */
-	private static List<Group> generateGroups(Person[] people) {
+	private static List<Group> generateGroups(List<Person> people) {
+
+		long start = System.currentTimeMillis();
 
 		List<Group> tempGroups = new ArrayList<Group>();
-		List<Person> removePersons = new ArrayList<Person>();
+		List<Person> members = new ArrayList<Person>(people);
 
 		for (Person p : people) {
-
-			removePersons.add(p);
-			List<Person> members = new ArrayList<Person>(Arrays.asList(people));
-
-			for (Person r : removePersons) {
-				members.remove(r);
-			}
+			members.remove(p);
 
 			for (Person q : members) {
-				Group g = new Group(p,q);
-				tempGroups.add(g);
+				p.getPersonKnowledge().or(q.getPersonKnowledge());
+				tempGroups.add(new Group((BitSet) p.getPersonKnowledge().clone()));
 			}
 		}	
 
+		long stop = System.currentTimeMillis();
+
+		System.out.println("Generating groups took " + (stop - start) + " millis.");
+
 		return tempGroups;
+
 	}
+
+
+	private static int[] threadedGroupProcessor(List<Group> groups) {
+		long start = System.currentTimeMillis();
+		int[] results = new int[] {0,0};
+		// check the number of available processors
+		int nThreads = 1; // Runtime.getRuntime().availableProcessors();
+		ExecutorService es = Executors.newFixedThreadPool(nThreads);	
+		List<Future<int[]>> resultSetProcessedGroups = new ArrayList<Future<int[]>>();
+
+		for (int i=0; i< nThreads; i++) {
+			List<Group> list = new ArrayList<Group>();
+
+			// split the list
+			if (i==0) {
+				list = groups.subList(0, (groups.size() / nThreads));
+			}
+
+			list = groups.subList((((groups.size() / nThreads)*i) + 1), ((groups.size() / nThreads)*(i+1)));
+
+			Callable<int[]> groupProcessor =  new GroupProcessor(list);
+			Future<int[]> submit = es.submit(groupProcessor);
+			resultSetProcessedGroups.add(submit);
+
+		}
+
+		for (Future<int[]> f : resultSetProcessedGroups) {
+			try {
+				if (f.get()[0] > results[0]) {
+					results[0] = f.get()[0];
+				}
+
+				results[1] += f.get()[1];
+
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			} catch (ExecutionException e) {
+				e.printStackTrace();
+			} finally {}
+		}
+
+		es.shutdown();
+
+		long stop = System.currentTimeMillis();
+		System.out.println("Threaded counting group knowledge took " + (stop - start) + " millis.");
+		return results;
+	}
+
 
 	/**
 	 * make a bunch of people according to our configured bandwidth
-	 * @return an array of people
+	 * @param 
+	 * @return a List of people
 	 */
-	public Person[] generatePeople() {
-		Person[] tempPeople = new Person[PERSON_BANDWITH];
-		
-		for (int i=0; i<PERSON_BANDWITH; i++) {
-			tempPeople[i] = new Person();
-			tempPeople[i].setPersonID(i);
-		}
-		
-		return tempPeople;
-	}
-	
-	/**
-	 * using BITSETs, whooo
-	 * @return a BitSet of random bits
-	 */
-	public static BitSet generateKnowledge() {
-		BitSet tempKnowledge = new BitSet(KNOWLEDGE_BANDWITH);
+	public static List<Person> personGeneration() {
+		long start = System.currentTimeMillis();
 		Random rand = new Random();
-		
-		for (int i=0; i<KNOWLEDGE_BANDWITH; i++) {
-			if (rand.nextBoolean() == true) tempKnowledge.set(i);
+		List<Person> people = new ArrayList<Person>();
+
+		for (int i=0; i<PERSON_BANDWITH; i++) {
+			people.add(new Person(rand));
 		}
-		
-		return tempKnowledge;
+
+		long stop = System.currentTimeMillis();
+
+		System.out.println("Generating people took " + (stop - start) + " millis.");
+
+		return people;
 	}
-	
+
+	public static List<Person> threadedPersonGeneration() {
+		long start = System.currentTimeMillis();
+
+		// check the number of available processors
+		int nThreads = 1; // Runtime.getRuntime().availableProcessors();
+		ExecutorService es = Executors.newFixedThreadPool(nThreads);
+		List<Future<List<Person>>> resultSet = new ArrayList<Future<List<Person>>>();				
+
+		List<Person> people = new ArrayList<Person>();
+
+		int numToGenerate = (PERSON_BANDWITH / nThreads);
+
+		for (int i=0; i< nThreads; i++) {
+
+
+			Callable<List<Person>> personGenerator =  new PersonGenerator(numToGenerate);
+			Future<List<Person>> submit = es.submit(personGenerator);
+			resultSet.add(submit);
+		}
+
+		for (Future<List<Person>> f : resultSet) {
+			try {
+				people.addAll(f.get());
+			} catch (Exception e) { 
+				e.printStackTrace();
+			}
+		}
+
+		long stop = System.currentTimeMillis();
+
+		System.out.println("Threaded generating people took " + (stop - start) + " millis.");
+
+		return people;
+	}
+
+
 	/**
 	 * we compute the number of possible groups as a check. not really needed.
 	 * using N*(N-1)/2 to determine max groups of 2 people 
@@ -155,30 +252,15 @@ public class GroupKnowledgeCounter {
 	public static int returnMaxGroups(int numPeople) {
 		return numPeople * (numPeople - 1) / 2;	
 	}
-	
+
 	/**
 	 * person class. overkill really but hey ho
 	 * note: on instantiation, the persons knowledge is generated
 	 *
 	 */
 	public static class Person {
-		
-		private int personID;
-		private BitSet personKnowledge;
-		
-		/**
-		 * @return the personID
-		 */
-		public int getPersonID() {
-			return personID;
-		}
 
-		/**
-		 * @param personID the personID to set
-		 */
-		public void setPersonID(int personID) {
-			this.personID = personID;
-		}
+		private BitSet personKnowledge = new BitSet(KNOWLEDGE_BANDWITH);
 
 		/**
 		 * @return the personKnowledge
@@ -193,9 +275,30 @@ public class GroupKnowledgeCounter {
 		public void setPersonKnowledge(BitSet personKnowledge) {
 			this.personKnowledge = personKnowledge;
 		}
+
+		public Person(Random r) {
+			for (int i=0; i<KNOWLEDGE_BANDWITH; i++) {
+				if (r.nextBoolean() == true) this.personKnowledge.set(i);
+			}
+		}
+	}
+
+	public static class PersonGenerator implements Callable<List<Person>> {
+		private int numToGenerate;
+		private List<Person> resultList = new ArrayList<Person>();
+		Random rand = new Random();
 		
-		public Person() {
-			this.setPersonKnowledge(generateKnowledge());
+		public PersonGenerator(int num) {
+			this.numToGenerate = num;
+		}
+
+		@Override
+		public List<Person> call() throws Exception {
+
+			for (int i=0; i< numToGenerate; i++) {
+				resultList.add(new Person(rand));
+			}
+			return resultList;
 		}
 	}
 
@@ -205,33 +308,6 @@ public class GroupKnowledgeCounter {
 	 *
 	 */
 	public static class Group {
-		/**
-		 * @return the p1
-		 */
-		public Person getP1() {
-			return p1;
-		}
-
-		/**
-		 * @param p1 the p1 to set
-		 */
-		public void setP1(Person p1) {
-			this.p1 = p1;
-		}
-
-		/**
-		 * @return the p2
-		 */
-		public Person getP2() {
-			return p2;
-		}
-
-		/**
-		 * @param p2 the p2 to set
-		 */
-		public void setP2(Person p2) {
-			this.p2 = p2;
-		}
 
 		/**
 		 * @return the groupKnowledge
@@ -247,17 +323,41 @@ public class GroupKnowledgeCounter {
 			this.groupKnowledge = groupKnowledge;
 		}
 
-		private Person p1;
-		private Person p2;
 		private BitSet groupKnowledge;
 
-		public Group(Person p1, Person p2) {
-			this.setP1(p1);
-			this.setP2(p2);
-			
-			this.getP1().getPersonKnowledge().or(this.getP2().getPersonKnowledge());
-			
-			this.setGroupKnowledge((BitSet) this.getP1().getPersonKnowledge().clone() );
+		public Group(BitSet knowledge) {
+
+			this.setGroupKnowledge(knowledge);
+		}
+	}
+
+	public static class GroupProcessor implements Callable<int[]> {
+		private List<Group> myGroups;
+
+		public GroupProcessor(List<Group> groups) {
+			this.myGroups = groups;
+		}
+
+		@Override
+		public int[] call() throws Exception {
+			int[] maxKnownTopicsAndGroups = new int[] {0,0};
+			int maxKnownTopics = 0; 
+
+			for (Group g : myGroups) {		
+				if (maxKnownTopics < g.getGroupKnowledge().cardinality()) {
+					maxKnownTopics = g.getGroupKnowledge().cardinality();
+				}	
+			}
+
+			maxKnownTopicsAndGroups[0] = maxKnownTopics;
+
+			for (Group p : myGroups) {
+				if (p.getGroupKnowledge().cardinality() == maxKnownTopics) {
+					maxKnownTopicsAndGroups[1]++;
+				}
+			}
+
+			return maxKnownTopicsAndGroups;
 		}
 	}
 }

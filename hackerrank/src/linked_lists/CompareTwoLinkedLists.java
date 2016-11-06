@@ -9,7 +9,9 @@ public class CompareTwoLinkedLists {
 		Node headB = new Node();
 		
 		headA.data = 9;
+		headA.next = headB;
 		headB.data = 6;
+		headB.next = headA;
 		
 		if ((CompareLists(headA, headB)) == 1) {
 			System.out.println("The lists contain the same data!");

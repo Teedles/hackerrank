@@ -18,8 +18,8 @@ import java.util.Random;
  */
 public class GroupKnowledgeCounter {
 
-	public final static int KNOWLEDGE_BANDWITH = 500;
-	public final static int PERSON_BANDWITH = 500;
+	public final static int KNOWLEDGE_BANDWITH = 500000;
+	public final static int PERSON_BANDWITH = 50;
 	
 	/**
 	 * 
@@ -34,15 +34,11 @@ public class GroupKnowledgeCounter {
 	public static void main(String[] args) {
 		//SETUP
 		int maxGroups = returnMaxGroups(PERSON_BANDWITH);
-		Person[] people = new Person[PERSON_BANDWITH];
+		BitSet[] people = generatePeople();
+		
 		long startTime;
 		long stopTime;
-		
-		for (int i=0;i<people.length; i++) {
-			people[i] = new Person();
-			people[i].setPersonID(i);
-		}
-		
+
 		List<Group> groups = generateGroups(people);
 	
 		// COMPUTATION
@@ -93,21 +89,21 @@ public class GroupKnowledgeCounter {
 	 * @param people
 	 * @return a list of groups
 	 */
-	private static List<Group> generateGroups(Person[] people) {
+	private static List<Group> generateGroups(BitSet[] people) {
 
 		List<Group> tempGroups = new ArrayList<Group>();
-		List<Person> removePersons = new ArrayList<Person>();
+		List<BitSet> removePersons = new ArrayList<BitSet>();
 
-		for (Person p : people) {
+		for (BitSet p : people) {
 
 			removePersons.add(p);
-			List<Person> members = new ArrayList<Person>(Arrays.asList(people));
+			List<BitSet> members = new ArrayList<BitSet>(Arrays.asList(people));
 
-			for (Person r : removePersons) {
+			for (BitSet r : removePersons) {
 				members.remove(r);
 			}
 
-			for (Person q : members) {
+			for (BitSet q : members) {
 				Group g = new Group(p,q);
 				tempGroups.add(g);
 			}
@@ -120,30 +116,26 @@ public class GroupKnowledgeCounter {
 	 * make a bunch of people according to our configured bandwidth
 	 * @return an array of people
 	 */
-	public Person[] generatePeople() {
-		Person[] tempPeople = new Person[PERSON_BANDWITH];
+	public static BitSet[] generatePeople() {
+		Random rand = new Random();
+		BitSet[] tempPeople = new BitSet[PERSON_BANDWITH];
 		
 		for (int i=0; i<PERSON_BANDWITH; i++) {
-			tempPeople[i] = new Person();
-			tempPeople[i].setPersonID(i);
+
+			BitSet person = new BitSet(KNOWLEDGE_BANDWITH);
+			
+				for (int k=0; k<KNOWLEDGE_BANDWITH; k++) {
+					if (rand.nextBoolean()) {
+								person.set(k);
+					} else {
+						continue;
+					}
+				}
+			
+				tempPeople[i] = person;
 		}
 		
 		return tempPeople;
-	}
-	
-	/**
-	 * using BITSETs, whooo
-	 * @return a BitSet of random bits
-	 */
-	public static BitSet generateKnowledge() {
-		BitSet tempKnowledge = new BitSet(KNOWLEDGE_BANDWITH);
-		Random rand = new Random();
-		
-		for (int i=0; i<KNOWLEDGE_BANDWITH; i++) {
-			if (rand.nextBoolean() == true) tempKnowledge.set(i);
-		}
-		
-		return tempKnowledge;
 	}
 	
 	/**
@@ -157,49 +149,6 @@ public class GroupKnowledgeCounter {
 	}
 	
 	/**
-	 * person class. overkill really but hey ho
-	 * note: on instantiation, the persons knowledge is generated
-	 *
-	 */
-	public static class Person {
-		
-		private int personID;
-		private BitSet personKnowledge;
-		
-		/**
-		 * @return the personID
-		 */
-		public int getPersonID() {
-			return personID;
-		}
-
-		/**
-		 * @param personID the personID to set
-		 */
-		public void setPersonID(int personID) {
-			this.personID = personID;
-		}
-
-		/**
-		 * @return the personKnowledge
-		 */
-		public BitSet getPersonKnowledge() {
-			return personKnowledge;
-		}
-
-		/**
-		 * @param personKnowledge the personKnowledge to set
-		 */
-		public void setPersonKnowledge(BitSet personKnowledge) {
-			this.personKnowledge = personKnowledge;
-		}
-		
-		public Person() {
-			this.setPersonKnowledge(generateKnowledge());
-		}
-	}
-
-	/**
 	 * group class. also overkill really
 	 * note: on instantiation, the OR of the two persons knowledge is generated
 	 *
@@ -208,28 +157,28 @@ public class GroupKnowledgeCounter {
 		/**
 		 * @return the p1
 		 */
-		public Person getP1() {
+		public BitSet getP1() {
 			return p1;
 		}
 
 		/**
 		 * @param p1 the p1 to set
 		 */
-		public void setP1(Person p1) {
+		public void setP1(BitSet p1) {
 			this.p1 = p1;
 		}
 
 		/**
 		 * @return the p2
 		 */
-		public Person getP2() {
+		public BitSet getP2() {
 			return p2;
 		}
 
 		/**
 		 * @param p2 the p2 to set
 		 */
-		public void setP2(Person p2) {
+		public void setP2(BitSet p2) {
 			this.p2 = p2;
 		}
 
@@ -237,27 +186,18 @@ public class GroupKnowledgeCounter {
 		 * @return the groupKnowledge
 		 */
 		public BitSet getGroupKnowledge() {
-			return groupKnowledge;
+			this.getP1().or(this.getP2());
+			return getP1();
 		}
 
-		/**
-		 * @param groupKnowledge the groupKnowledge to set
-		 */
-		public void setGroupKnowledge(BitSet groupKnowledge) {
-			this.groupKnowledge = groupKnowledge;
-		}
+		private BitSet p1;
+		private BitSet p2;
 
-		private Person p1;
-		private Person p2;
-		private BitSet groupKnowledge;
-
-		public Group(Person p1, Person p2) {
+		public Group(BitSet p1, BitSet p2) {
 			this.setP1(p1);
 			this.setP2(p2);
 			
-			this.getP1().getPersonKnowledge().or(this.getP2().getPersonKnowledge());
-			
-			this.setGroupKnowledge((BitSet) this.getP1().getPersonKnowledge().clone() );
+			this.getP1().or(this.getP2());
 		}
 	}
 }

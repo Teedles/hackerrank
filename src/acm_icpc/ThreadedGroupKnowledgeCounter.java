@@ -22,7 +22,7 @@ import java.util.concurrent.Future;
  */
 public class GroupKnowledgeCounter {
 
-	public final static int KNOWLEDGE_BANDWITH = 500;
+	public final static int KNOWLEDGE_BANDWITH = 500000;
 	public final static int PERSON_BANDWITH = 500;
 
 	/**

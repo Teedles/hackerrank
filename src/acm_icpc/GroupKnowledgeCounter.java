@@ -9,8 +9,13 @@ package acm_icpc;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Random;
+import java.util.Set;
 
 /**
  * @author Teedles
@@ -18,7 +23,7 @@ import java.util.Random;
  */
 public class GroupKnowledgeCounter {
 
-	public final static int KNOWLEDGE_BANDWITH = 500000;
+	public final static int KNOWLEDGE_BANDWITH = 50;
 	public final static int PERSON_BANDWITH = 50;
 	
 	/**
@@ -43,13 +48,30 @@ public class GroupKnowledgeCounter {
 	
 		// COMPUTATION
 		startTime = System.currentTimeMillis();
-		int[] maxKnownTopics = countKnownTopicsAndGroups(groups);
+		TopicAndGroupResult maxKnownTopics = countKnownTopicsAndGroups(groups);
 		stopTime = System.currentTimeMillis(); 
 		
 		// PRESENTATION
 		System.out.println("Max possible groups is: " + maxGroups);
-		System.out.println("Max known topics is: " + maxKnownTopics[0]);
-		System.out.println("Number of Groups that know the max Topics is: " + maxKnownTopics[1]);
+		System.out.println("Max known topics is: " + maxKnownTopics.getNumbers()[0]);
+		System.out.println("Number of Groups that know the max Topics is: " + maxKnownTopics.getNumbers()[1]);
+		
+		
+		// So, its possible that multiple groups know the same number of topics...just different ones
+		// How can we deal with this? No idea, however, we *can* enumerate these groups...
+		if (maxKnownTopics.getNumbers()[1] > 1) {
+			Set<Entry<BitSet, MutableInt>> set = maxKnownTopics.getMaps().entrySet();
+			Iterator<Entry<BitSet, MutableInt>> iterator = set.iterator();
+	        List<Map.Entry> myList = new ArrayList<>();
+			
+		      while(iterator.hasNext()) {
+		         Map.Entry mentry = iterator.next();
+		         System.out.println("Group Knowledge Key: "+ ((BitSet) mentry.getKey()).toString());
+		    	 System.out.println("has "+ ((MutableInt) mentry.getValue()).get() + " groups sharing it.");
+		    	  
+		      }
+		}
+		
 		System.out.println("Computation took: "+ (stopTime - startTime) + " millis");
 	}
 	
@@ -59,10 +81,11 @@ public class GroupKnowledgeCounter {
 	 * @param groups
 	 * @return an int array with the numbers counted
 	 */
-	private static int[] countKnownTopicsAndGroups(List<Group> groups) {
+	private static TopicAndGroupResult countKnownTopicsAndGroups(List<Group> groups) {
 		
 		int[] maxKnownTopicsAndGroups = new int[] {0,0};
 		int maxKnownTopics = 0; 
+		Map<BitSet, MutableInt> hmap = new HashMap<BitSet, MutableInt>();
 
 		for (Group g : groups) {		
 			if (maxKnownTopics < g.getGroupKnowledge().cardinality()) {
@@ -72,14 +95,27 @@ public class GroupKnowledgeCounter {
 	
 		maxKnownTopicsAndGroups[0] = maxKnownTopics;
 		
+		// find out if more than one group knows the maxKnownTopics
 		for (Group p : groups) {
-		if (p.getGroupKnowledge().cardinality() == maxKnownTopics) {
-				maxKnownTopicsAndGroups[1]++;
+			if (p.getGroupKnowledge().cardinality() == maxKnownTopics) {
+					maxKnownTopicsAndGroups[1]++;
+					
+					MutableInt count = hmap.get(p.getGroupKnowledge());
+					if (count == null) {
+						hmap.put(p.getGroupKnowledge(), new MutableInt());
+					} else {
+						count.increment();
+					}
 			}
 		}
 		
-		return maxKnownTopicsAndGroups;
+	    TopicAndGroupResult tagr = new TopicAndGroupResult();
+	    tagr.setNumbers(maxKnownTopicsAndGroups);
+	    tagr.setMaps(hmap);
+	      
+		return tagr;
 	}
+
 
 	/**
 	 *  for our array of people, create the groups they will be a member of
@@ -125,7 +161,7 @@ public class GroupKnowledgeCounter {
 			BitSet person = new BitSet(KNOWLEDGE_BANDWITH);
 			
 				for (int k=0; k<KNOWLEDGE_BANDWITH; k++) {
-					if (rand.nextBoolean()) {
+					if (rand.nextBoolean() && rand.nextBoolean()) {
 								person.set(k);
 					} else {
 						continue;
@@ -186,8 +222,9 @@ public class GroupKnowledgeCounter {
 		 * @return the groupKnowledge
 		 */
 		public BitSet getGroupKnowledge() {
-			this.getP1().or(this.getP2());
-			return getP1();
+			BitSet myOr = (BitSet) getP1().clone();
+			myOr.or(getP2());
+			return myOr;
 		}
 
 		private BitSet p1;
@@ -196,9 +233,34 @@ public class GroupKnowledgeCounter {
 		public Group(BitSet p1, BitSet p2) {
 			this.setP1(p1);
 			this.setP2(p2);
-			
-			this.getP1().or(this.getP2());
+
 		}
 	}
+	
+	
+	public static class MutableInt {
+		  int value = 1; // note that we start at 1 since we're counting
+		  public void increment () { ++value;      }
+		  public int  get ()       { return value; }
+		}
+
+	// why cant java return two things at once?
+	public static class TopicAndGroupResult {
+		public int[] getNumbers() {
+			return numbers;
+		}
+		public void setNumbers(int[] numbers) {
+			this.numbers = numbers;
+		}
+		public Map<BitSet, MutableInt> getMaps() {
+			return maps;
+		}
+		public void setMaps(Map<BitSet, MutableInt> maps) {
+			this.maps = maps;
+		}
+		private int[] numbers;
+		private Map<BitSet, MutableInt> maps;
+	}
 }
+
 

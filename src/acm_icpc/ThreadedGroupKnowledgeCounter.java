@@ -19,10 +19,14 @@ import java.util.concurrent.Future;
 /**
  * @author Teedles
  *
+ *
+ * VERY MUCH A WORK IN PROGRESS!!!
+ *
+ *
  */
 public class ThreadedGroupKnowledgeCounter {
 
-	public final static int KNOWLEDGE_BANDWITH = 500000;
+	public final static int KNOWLEDGE_BANDWITH = 50000;
 	public final static int PERSON_BANDWITH = 500;
 
 	/**
@@ -211,7 +215,7 @@ public class ThreadedGroupKnowledgeCounter {
 		long start = System.currentTimeMillis();
 
 		// check the number of available processors
-		int nThreads = 1; // Runtime.getRuntime().availableProcessors();
+		int nThreads = Runtime.getRuntime().availableProcessors();
 		ExecutorService es = Executors.newFixedThreadPool(nThreads);
 		List<Future<List<Person>>> resultSet = new ArrayList<Future<List<Person>>>();				
 

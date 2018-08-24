@@ -20,7 +20,7 @@ import java.util.concurrent.Future;
  * @author Teedles
  *
  */
-public class GroupKnowledgeCounter {
+public class ThreadedGroupKnowledgeCounter {
 
 	public final static int KNOWLEDGE_BANDWITH = 500000;
 	public final static int PERSON_BANDWITH = 500;
@@ -28,7 +28,7 @@ public class GroupKnowledgeCounter {
 	/**
 	 * 
 	 */
-	public GroupKnowledgeCounter() {}
+	public ThreadedGroupKnowledgeCounter() {}
 
 	/**
 	 * @param args

@@ -22,6 +22,8 @@ public class Solution {
 			myArray[i] = s.nextInt(); 
 		}
 		
+		s.close();
+		
 		BigDecimal myMean = getMyMean(myArray);
 		BigDecimal myStdDev = getStdDec(myMean, myArray);
 		

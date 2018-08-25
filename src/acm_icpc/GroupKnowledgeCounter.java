@@ -23,8 +23,8 @@ import java.util.Set;
  */
 public class GroupKnowledgeCounter {
 
-	public final static int KNOWLEDGE_BANDWITH = 50;
-	public final static int PERSON_BANDWITH = 50;
+	public final static int KNOWLEDGE_BANDWITH = 500;
+	public final static int PERSON_BANDWITH = 500;
 	
 	/**
 	 * 
@@ -55,22 +55,19 @@ public class GroupKnowledgeCounter {
 		System.out.println("Max possible groups is: " + maxGroups);
 		System.out.println("Max known topics is: " + maxKnownTopics.getNumbers()[0]);
 		System.out.println("Number of Groups that know the max Topics is: " + maxKnownTopics.getNumbers()[1]);
+		System.out.println("Number of unique Max Topics: " + maxKnownTopics.getMaps().size());
 		
-		
-		// So, its possible that multiple groups know the same number of topics...just different ones
-		// How can we deal with this? No idea, however, we *can* enumerate these groups...
-		if (maxKnownTopics.getNumbers()[1] > 1) {
-			Set<Entry<BitSet, MutableInt>> set = maxKnownTopics.getMaps().entrySet();
-			Iterator<Entry<BitSet, MutableInt>> iterator = set.iterator();
-	        List<Map.Entry> myList = new ArrayList<>();
-			
-		      while(iterator.hasNext()) {
-		         Map.Entry mentry = iterator.next();
-		         System.out.println("Group Knowledge Key: "+ ((BitSet) mentry.getKey()).toString());
-		    	 System.out.println("has "+ ((MutableInt) mentry.getValue()).get() + " groups sharing it.");
-		    	  
-		      }
-		}
+		// print out unique max topics & number of groups that know them
+//		if (maxKnownTopics.getNumbers()[1] > 1) {
+//			Set<Entry<BitSet, MutableInt>> set = maxKnownTopics.getMaps().entrySet();
+//			Iterator<Entry<BitSet, MutableInt>> iterator = set.iterator();
+//		
+//		      while(iterator.hasNext()) {
+//		         Map.Entry<BitSet, MutableInt> mentry = iterator.next();
+//		         System.out.println("Group Knowledge Key: "+ ((BitSet) mentry.getKey()).toString());
+//		    	 System.out.println("has "+ ((MutableInt) mentry.getValue()).get() + " groups sharing it.");
+//		      }
+//		}
 		
 		System.out.println("Computation took: "+ (stopTime - startTime) + " millis");
 	}
@@ -86,7 +83,8 @@ public class GroupKnowledgeCounter {
 		int[] maxKnownTopicsAndGroups = new int[] {0,0};
 		int maxKnownTopics = 0; 
 		Map<BitSet, MutableInt> hmap = new HashMap<BitSet, MutableInt>();
-
+		
+		// find the maximum known topics in all the groups
 		for (Group g : groups) {		
 			if (maxKnownTopics < g.getGroupKnowledge().cardinality()) {
 				maxKnownTopics = g.getGroupKnowledge().cardinality();
@@ -95,11 +93,16 @@ public class GroupKnowledgeCounter {
 	
 		maxKnownTopicsAndGroups[0] = maxKnownTopics;
 		
+		// So, its possible that multiple groups know the same number of topics...just different ones
+		// How can we deal with this? No idea, however, we *can* enumerate these groups...
+		
 		// find out if more than one group knows the maxKnownTopics
 		for (Group p : groups) {
 			if (p.getGroupKnowledge().cardinality() == maxKnownTopics) {
 					maxKnownTopicsAndGroups[1]++;
 					
+					// count groups that know the max knowledge
+					// and those that know the exact same knowledge
 					MutableInt count = hmap.get(p.getGroupKnowledge());
 					if (count == null) {
 						hmap.put(p.getGroupKnowledge(), new MutableInt());
@@ -115,7 +118,6 @@ public class GroupKnowledgeCounter {
 	      
 		return tagr;
 	}
-
 
 	/**
 	 *  for our array of people, create the groups they will be a member of
@@ -161,7 +163,7 @@ public class GroupKnowledgeCounter {
 			BitSet person = new BitSet(KNOWLEDGE_BANDWITH);
 			
 				for (int k=0; k<KNOWLEDGE_BANDWITH; k++) {
-					if (rand.nextBoolean() && rand.nextBoolean()) {
+					if (rand.nextBoolean()) {
 								person.set(k);
 					} else {
 						continue;
@@ -190,54 +192,28 @@ public class GroupKnowledgeCounter {
 	 *
 	 */
 	public static class Group {
-		/**
-		 * @return the p1
-		 */
-		public BitSet getP1() {
-			return p1;
-		}
 
-		/**
-		 * @param p1 the p1 to set
-		 */
-		public void setP1(BitSet p1) {
-			this.p1 = p1;
-		}
-
-		/**
-		 * @return the p2
-		 */
-		public BitSet getP2() {
-			return p2;
-		}
-
-		/**
-		 * @param p2 the p2 to set
-		 */
-		public void setP2(BitSet p2) {
-			this.p2 = p2;
+		public void setMyOr(BitSet myOr) {
+			this.myOr = myOr;
 		}
 
 		/**
 		 * @return the groupKnowledge
 		 */
 		public BitSet getGroupKnowledge() {
-			BitSet myOr = (BitSet) getP1().clone();
-			myOr.or(getP2());
+
 			return myOr;
 		}
 
-		private BitSet p1;
-		private BitSet p2;
+		private BitSet myOr;
 
 		public Group(BitSet p1, BitSet p2) {
-			this.setP1(p1);
-			this.setP2(p2);
-
+			BitSet myOr = (BitSet) p1.clone();
+			myOr.or(p2);
+			this.setMyOr(myOr);
 		}
 	}
-	
-	
+		
 	public static class MutableInt {
 		  int value = 1; // note that we start at 1 since we're counting
 		  public void increment () { ++value;      }

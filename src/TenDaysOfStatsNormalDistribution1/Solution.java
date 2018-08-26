@@ -8,12 +8,14 @@ public class Solution {
     	int sdev = 2;
     	
 		// round to 3 places hr requirement
-		System.out.format("%.3f%n", nd(mean, sdev, 19.5) );
-		System.out.format("%.3f%n", nd(mean, sdev, 22) - nd(mean, sdev, 20) );
+    	// cdf exact
+		System.out.format("%.3f%n", cdf(mean, sdev, 19.5) );
+		// cdf range
+		System.out.format("%.3f%n", cdf(mean, sdev, 22) - cdf(mean, sdev, 20) );
     }
     
-    
-    private static double nd(double mean, double sdev, double x) {
+    // cumulative distribution funcion
+    private static double cdf(double mean, double sdev, double x) {
     	double parm = (x - mean) / (sdev * Math.sqrt(2));
     	
     	return 0.5 * (1 + erf(parm));
